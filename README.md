@@ -17,7 +17,7 @@ no tab-switching required.
 The wizard is built with vanilla HTML, CSS, and JavaScript, ensuring it is lightweight, has no
 backend, and deploys to GitHub Pages for free.
 
-**Project ID:** `spuds0588-powerapp-electron-template-v1.0.0`
+**Project ID:** `spuds0588-powerapp-electron-template-v1.1.0`
 
 > Sister project: [`Powerapp-to-Extension-Template`](https://github.com/Spuds0588/Powerapp-to-Extension-Template)
 > — the same concept packaged as a Chrome/Edge side-panel extension.
@@ -29,8 +29,12 @@ backend, and deploys to GitHub Pages for free.
 *   **Dual-Pane Desktop Shell** — A native window with the Power App in a fixed-width sidebar and an
     embedded browser in the main pane, using modern `WebContentsView` (not the deprecated
     `BrowserView`).
-*   **Visual Configuration Wizard** — A web UI on GitHub Pages that writes `config.json` directly
-    into your project folder using the File System Access API. No manual code editing or unzipping.
+*   **Visual Configuration Wizard** — A step-by-step web UI on GitHub Pages that writes `config.json`
+    directly into your project folder using the File System Access API. No manual code editing or
+    unzipping.
+*   **Simulated Test & Preview** — Before saving, the wizard simulates a scrape: type sample values and
+    it shows the exact sidebar URL your app will load, the JSON it captures, and the main-process log
+    it prints (including whether the unchanged-URL guard would skip the reload).
 *   **Context Passing** — Send critical data to your Power App:
     *   **`tabURL`**: The full URL of the main pane.
     *   **`tabBody`**: A JSON object of values from specific HTML elements (by `id`).
@@ -69,13 +73,23 @@ Clone or download the repository into a folder on your computer:
 ```bash
 git clone https://github.com/Spuds0588/Powerapps-to-electron-template.git
 cd Powerapps-to-electron-template
-```
+```### Step 2: Configure with the Wizard
+Open the **[Configuration Wizard](https://spuds0588.github.io/Powerapps-to-electron-template/)** and
+walk through it — it mirrors the sister extension project's wizard:
 
-### Step 2: Configure with the Wizard
-Open the **[Configuration Wizard](https://spuds0588.github.io/Powerapps-to-electron-template/)**,
-fill in your Power App URL and triggers, then click **Save config.json to my folder** and select your
-project folder. Prefer no browser permissions? Click **Download config.json** and drop the file into
-the project folder yourself.
+1.  **Connect your Power App** — paste your play URL.
+2.  **Window & sidebar sizing** — how big the desktop window opens.
+3.  **Choose what context to send** — `tabURL`, element IDs, local storage keys.
+4.  **Find the data** — helper links to the bookmarklets in `Research_Tools/` (these steps only appear
+    when you enable the matching data source).
+5.  **Pick your triggers** — page navigation and/or a polling timer.
+6.  **Test & Preview** — simulate a scrape and inspect the generated sidebar URL and log.
+7.  **Review & save** — check the summary, then **Save config.json to my folder** and pick your
+    project folder.
+
+Prefer no browser permissions? Click **Download config.json** and drop the file into the project
+folder yourself. Already have a config? **Import config.json** on the first screen loads it back in.
+The wizard keeps your progress in `localStorage`, so you can close the tab and come back.
 
 > Just want to test fast? Copy `config.example.json` to `config.json` and edit the `powerAppUrl`.
 
@@ -209,6 +223,30 @@ software-distribution tooling (e.g. Microsoft Intune).
 *   **Console logs** — the main process logs with the `[PowerApp Desktop]` prefix so you can trace
     configuration loading, popups, and every sidebar update.
 
+### Automated tests
+
+```bash
+npm test
+```
+
+Runs the suite in `test/` with the built-in `node:test` runner (no extra dependencies, no Electron
+binary required). `test/harness.js` loads the real `main.js` into a `node:vm` sandbox back-ended by a
+stubbed Electron, so the shipping code is exercised directly:
+
+*   `test/main.test.js` — config load/merge fallbacks, sidebar layout and clamping on resize, the
+    generated scrape script, sidebar URL construction (`tabURL` / `tabBody` / `tabLocalStorage`,
+    preserved base params, URL-encoded values), the identical-URL dedupe guard, trigger wiring,
+    timer clamps, SSO popups, and the keyboard shortcuts.
+*   `test/wizard.test.js` — drives the shipping `wizard.html` through a minimal DOM stub: the
+    Previous/Next flow, the conditional steps, the simulated preview output, the identical-scrape
+    dedupe, `config.json` written from the form, a cancelled save, and the save → distribution-guide
+    switch.
+*   `test/static.test.js` — every shipped JS file and inline `<script>` block parses, the JSON files
+    parse, every wizard step renders the fields it wires up (and escapes hostile values),
+    `config.example.json` only uses keys the app understands, `config.json` stays git-ignored, and the
+    Pages workflow still builds the wizard. It also asserts the wizard's simulator builds byte-identical
+    sidebar URLs to `main.js`.
+
 Common issues:
 *   **"Blank screen when logging in"** — verify popup handling in `setWindowOpenHandler`.
 *   **"Wizard cannot save file"** — the wizard needs a Secure Context (HTTPS/GitHub Pages) and a
@@ -233,6 +271,11 @@ Common issues:
 │   ├── Browser_Data_Scanners.html
 │   ├── id-scanner-bookmarklet.js
 │   └── local-storage-scanner-bookmarklet.js
+├── test/                       # npm test suite (node:test + a stubbed-Electron harness)
+│   ├── harness.js              # Stubbed Electron (main.js) and DOM (wizard.html)
+│   ├── main.test.js            # Behaviour of the Electron shell
+│   ├── static.test.js          # File/HTML/JSON integrity + wizard step rendering
+│   └── wizard.test.js          # The wizard's step flow, driving the real page
 ├── Agents.md                   # Directives for AI coding agents
 ├── TODO.md                     # Task checklist
 └── HISTORY.md                  # Version history

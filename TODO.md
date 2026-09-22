@@ -29,8 +29,21 @@ Working checklist for the template. Mirrors the Developer Task List in
 - [x] Implement `window.showDirectoryPicker()` logic on the Save button.
 - [x] Format the form inputs into the expected JSON schema and write to disk via `createWritable()`.
 - [x] Build the dynamic terminal output display (revealed post-save) with copy/paste NPM commands.
+- [x] Rebuild the wizard as a multi-step flow (hero, Previous/Next, conditional steps, resumable
+      state) matching the sister project's wizard experience and light theme.
+- [x] Add the simulated Test & Preview output: sample inputs per captured value, the generated
+      sidebar URL, the scraped JSON, the reload-dedupe result, and a simulated main-process log.
+- [x] Add the review step, the platform-tabbed packaging guide, and `Import config.json`.
 
 ## Phase 5: Testing & Distribution
+- [x] Add an automated test suite (`npm test`) driven by `node:test`: `main.js` is loaded into a
+      `node:vm` sandbox with a stubbed Electron (`test/harness.js`) so config merging, layout maths,
+      scrape-script generation, sidebar URL building, the dedupe guard, and the triggers are all
+      covered without a display server.
+- [x] Add static verification tests for JS syntax, inline `<script>` blocks in the HTML pages, JSON
+      parsing, the config-example schema, and the Pages workflow.
+- [x] Add wizard tests that drive the real `wizard.html`: the full step flow, the simulated preview,
+      the written config, and parity between the wizard's URL builder and `main.js`.
 - [ ] Test the Microsoft Auth flow using a live Power App URL.
 - [ ] Test DOM scraping against a dummy webpage.
 - [ ] Test `npm run make` on Windows (Squirrel) and Mac (ZIP) to ensure clean executables.

@@ -28,8 +28,13 @@ the vanilla single-file configuration wizard, and the `Research_Tools` bookmarkl
     `config.json` never crashes the app.
 7.  **The Wizard:** `wizard.html` must remain a vanilla, zero-dependency, single-file HTML
     application relying on the native File System Access API (`window.showDirectoryPicker`). It must
-    be deployable to GitHub Pages without a backend, with a `Blob` download fallback.
-8.  **Style:** Follow the established color system (Savoy Blue `#5964A6`, Penn Blue `#0C1B49`,
+    be deployable to GitHub Pages without a backend, with a `Blob` download fallback. No CDN pulls.
+8.  **Wizard Parity:** The wizard mirrors the sister project's step-by-step experience (hero screen,
+    Previous/Next navigation, conditional steps, a simulated preview, distro tabs) and its light
+    palette. The simulator must reuse the app's logic, not approximate it: `toConfig`,
+    `buildScrapeResult` and `buildSidebarUrl` are exposed on `window.PowerAppWizard` and
+    `test/static.test.js` asserts they produce byte-identical URLs to `main.js`.
+9.  **Style:** Follow the established color system (Savoy Blue `#5964A6`, Penn Blue `#0C1B49`,
     Platinum `#DFE1E8`, Resolution Blue `#182575`, International Klein Blue `#232F9F`).
 
 ## File Map
@@ -41,6 +46,12 @@ the vanilla single-file configuration wizard, and the `Research_Tools` bookmarkl
 | `wizard.html` | Single-file visual configuration wizard (GitHub Pages). |
 | `forge.config.js` | Electron Forge packaging/maker configuration. |
 | `Research_Tools/` | Bookmarklets to discover DOM IDs and local storage keys. |
+| `test/` | `npm test` suite. `harness.js` loads `main.js` in a `node:vm` sandbox with a stubbed Electron, and `wizard.html` with a stubbed DOM. |## Verification
+*   `npm test` must pass before a change is considered done. Add a case to `test/main.test.js` when
+    touching `main.js`, to `test/static.test.js` when touching shipped JS/HTML/JSON, and to
+    `test/wizard.test.js` when changing the wizard's steps or flow.
+*   `test/harness.js` is the only place Electron is faked. Keep `main.js` free of top-level side
+effects beyond `app.whenReady()` so the harness can keep loading it directly.
 
 ## Common Testing Scenarios
 *   **"Blank screen when logging in"** — check the `setWindowOpenHandler` popup logic on both views.
