@@ -1,0 +1,21 @@
+{
+  "powerAppUrl": "https://apps.powerapps.com/play/e/YOUR_ENVIRONMENT_ID/a/YOUR_APP_ID?tenantId=YOUR_TENANT_ID",
+  "defaultMainUrl": "https://www.bing.com",
+  "sidebarWidth": 420,
+  "windowWidth": 1440,
+  "windowHeight": 900,
+  "parameters": {
+    "includeTabUrl": true,
+    "includeTabBody": false,
+    "targetIds": [],
+    "includeLocalStorage": false,
+    "targetLocalStorageKeys": []
+  },
+  "triggers": {
+    "onUrlChange": true,
+    "onTimer": {
+      "enabled": false,
+      "interval": 2000
+    }
+  }
+}
