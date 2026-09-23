@@ -38,11 +38,13 @@ test('the wizard walks the whole configuration flow and saves a valid config.jso
   el('defaultMainUrl').value = 'https://www.bing.com';
   await click('next-btn');
 
-  // Step 2: sizing.
+  // Step 2: sizing and the sidebar side.
   assert.ok(html().includes('id="sidebarWidth"'), 'step 2 should render the sizing fields');
   el('windowWidth').value = '1280';
   el('windowHeight').value = '800';
   el('sidebarWidth').value = '380';
+  el('sidebarPosition').value = 'right';
+  await el('sidebarPosition').dispatch('change');
   await click('next-btn');
 
   // Step 3: data sources. Enabling the two optional sources must reveal their steps.
@@ -100,7 +102,7 @@ test('the wizard walks the whole configuration flow and saves a valid config.jso
   // Step 8: review.
   await click('next-btn');
   assert.ok(html().includes('id="review-json"'), 'the review step should render');
-  assert.ok(html().includes('Sidebar: 380 px'));
+  assert.ok(html().includes('Sidebar: 380 px (right)'));
   assert.ok(html().includes('customerName'), 'the review should list the captured IDs');
 
   // Step 9: save.
@@ -125,6 +127,7 @@ test('the wizard walks the whole configuration flow and saves a valid config.jso
   assert.equal(config.powerAppUrl, 'https://apps.powerapps.com/play/e/ENV/a/APP?tenantId=TT');
   assert.equal(config.defaultMainUrl, 'https://www.bing.com');
   assert.equal(config.sidebarWidth, 380);
+  assert.equal(config.sidebarPosition, 'right');
   assert.equal(config.windowWidth, 1280);
   assert.equal(config.windowHeight, 800);
   assert.deepEqual(config.parameters.targetIds, ['customerName', 'caseStatus', 'policyNumber']);
@@ -166,6 +169,68 @@ test('a cancelled save keeps the wizard on the save step', async () => {
   // The download fallback marks the configuration as saved so Next can continue.
   await el('download-btn').click();
   assert.equal(el('next-btn').textContent, 'Continue →');
+});
+
+test('the sidebar position is selectable and written to config.json', async () => {
+  const page = loadWizard();
+  const { el, html, click, sandbox } = page;
+
+  // The hero mockup docks the Power App on the right until told otherwise.
+  assert.ok(html().includes('class="browser-content sidebar-right"'), 'the mockup should start right-handed');
+  assert.ok(
+    html().indexOf('Browser (main pane)') < html().indexOf('Power App (sidebar)'),
+    'the right-handed layout renders the main pane first'
+  );
+
+  await click('next-btn');
+  el('powerAppUrl').value = 'https://apps.powerapps.com/play/e/ENV/a/APP';
+  await click('next-btn');
+
+  el('sidebarPosition').value = 'left';
+  await el('sidebarPosition').dispatch('change');
+
+  // Walk to the simulated preview, whose mockup uses the chosen position.
+  for (let i = 0; i < 3; i += 1) await click('next-btn');
+  assert.ok(html().includes('id="simulateBtn"'), 'the preview step should render');
+  assert.ok(!html().includes('class="browser-content sidebar-right"'), 'the left-handed layout drops the right modifier class');
+  assert.ok(
+    html().indexOf('Power App (sidebar)') < html().indexOf('Browser (main pane)'),
+    'the left-handed layout renders the Power App pane first'
+  );
+
+  await click('next-btn');
+  assert.ok(html().includes('id="review-json"'), 'the review step should render');
+  assert.ok(html().includes('Sidebar: 420 px (left)'), 'the review should show the flipped position');
+
+  let written = null;
+  sandbox.window.showDirectoryPicker = async () => ({
+    name: 'project',
+    getFileHandle: async () => ({
+      createWritable: async () => ({
+        write: async (text) => { written = text; },
+        close: async () => {}
+      })
+    })
+  });
+
+  await click('next-btn'); // review -> save
+  await click('next-btn'); // saves config.json
+  assert.equal(JSON.parse(written).sidebarPosition, 'left');
+});
+
+test('importing a config.json keeps its sidebar position', async () => {
+  const page = loadWizard();
+  const { el, html, click } = page;
+
+  el('import-config-file').files = [{
+    text: async () => JSON.stringify({ powerAppUrl: 'https://apps.powerapps.com/play/e/ENV/a/APP', sidebarPosition: 'left' })
+  }];
+  await el('import-config-file').dispatch('change');
+
+  assert.ok(html().includes('id="powerAppUrl"'), 'the import should jump back into the wizard');
+
+  for (let i = 0; i < 5; i += 1) await click('next-btn');
+  assert.ok(html().includes('Sidebar: 420 px (left)'), 'the imported position should survive the import');
 });
 
 test('Previous walks back out of the guide and Start Over resets everything', async () => {

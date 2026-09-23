@@ -2,6 +2,7 @@
   "powerAppUrl": "https://apps.powerapps.com/play/e/YOUR_ENVIRONMENT_ID/a/YOUR_APP_ID?tenantId=YOUR_TENANT_ID",
   "defaultMainUrl": "https://www.bing.com",
   "sidebarWidth": 420,
+  "sidebarPosition": "right",
   "windowWidth": 1440,
   "windowHeight": 900,
   "parameters": {

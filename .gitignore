@@ -13,6 +13,9 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
+# Screenshots written by the Chromium suite (`npm run test:browser`)
+test/screenshots/
+
 # OS / editor cruft
 .DS_Store
 Thumbs.db

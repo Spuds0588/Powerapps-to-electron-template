@@ -28,6 +28,8 @@ jobs:
         run: |
           mkdir -p _site
           cp wizard.html _site/index.html
+          # Also keep the file's own name: Research_Tools links back to ../wizard.html.
+          cp wizard.html _site/wizard.html
           cp README.md _site/README.md
           cp config.example.json _site/config.example.json
           cp -r Research_Tools _site/Research_Tools

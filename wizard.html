@@ -262,6 +262,12 @@
             min-width: 0;
         }
 
+        /* The Power App docks on the right by default, so move the divider to match. */
+        .browser-content.sidebar-right .browser-sidebar {
+            border-left: 1px solid #dfe1e8;
+            border-right: none;
+        }
+
         .browser-main-area {
             flex: 1;
             background: #fff;
@@ -727,6 +733,7 @@
                 powerAppUrl: '',
                 defaultMainUrl: 'https://www.bing.com',
                 sidebarWidth: 420,
+                sidebarPosition: 'right',
                 windowWidth: 1440,
                 windowHeight: 900,
                 includeTabUrl: true,
@@ -759,11 +766,15 @@
                 .map((item) => item.trim())
                 .filter(Boolean);
 
+            /** The configured sidebar side, normalised to 'left' or 'right'. */
+            const readSidebarPosition = (value) => (String(value || '').toLowerCase() === 'left' ? 'left' : 'right');
+
             /** Form state -> the config.json schema `main.js` deep-merges over its defaults. */
             const toConfig = (state) => ({
                 powerAppUrl: String(state.powerAppUrl || '').trim(),
                 defaultMainUrl: String(state.defaultMainUrl || '').trim() || defaultConfig.defaultMainUrl,
                 sidebarWidth: Number(state.sidebarWidth) || defaultConfig.sidebarWidth,
+                sidebarPosition: readSidebarPosition(state.sidebarPosition),
                 windowWidth: Number(state.windowWidth) || defaultConfig.windowWidth,
                 windowHeight: Number(state.windowHeight) || defaultConfig.windowHeight,
                 parameters: {
@@ -832,7 +843,32 @@
                 return query ? base + '?' + query : base;
             };
 
-            window.PowerAppWizard = { toConfig, buildScrapeResult, buildSidebarUrl, parseList, defaultConfig };
+            /** True when the Power App is docked on the left instead of the default right. */
+            const isSidebarOnLeft = () => readSidebarPosition(configData.sidebarPosition) === 'left';
+
+            window.PowerAppWizard = { toConfig, buildScrapeResult, buildSidebarUrl, parseList, readSidebarPosition, defaultConfig };
+
+            // The sidebar-position select is re-created on every render, so its change is caught
+            // with a single delegated listener instead of a per-element one. Handling the import
+            // input here too keeps an imported config.json's sidebarPosition intact, since the
+            // import step merges every other key itself.
+            document.addEventListener('change', async (event) => {
+                const target = event.target;
+                if (!target) return;
+
+                if (target.id === 'sidebarPosition') {
+                    configData.sidebarPosition = readSidebarPosition(target.value);
+                }
+
+                if (target.id === 'import-config-file' && target.files && target.files[0]) {
+                    try {
+                        const parsed = JSON.parse(await target.files[0].text());
+                        configData.sidebarPosition = readSidebarPosition(parsed.sidebarPosition);
+                    } catch (error) {
+                        // A malformed file is reported by the import step itself.
+                    }
+                }
+            });
 
             // -----------------------------------------------------------------
             // Small DOM helpers
@@ -894,13 +930,9 @@
             const renderWindowMockup = (options) => {
                 const opts = options || {};
                 const urlId = opts.urlId ? ' id="' + opts.urlId + '"' : '';
-                return `
-                    <div class="browser-mockup">
-                        <div class="mock-titlebar">
-                            <div class="mock-traffic"><span></span><span></span><span></span></div>
-                            <div class="mock-title">${escapeHtml(opts.title || 'Power App Desktop Extension')}</div>
-                        </div>
-                        <div class="browser-content">
+                const sidebarRight = !isSidebarOnLeft();
+
+                const sidebarPane = `
                             <div class="browser-sidebar">
                                 <div class="mock-pane-caption">
                                     <span class="browser-status-indicator">●</span> Power App (sidebar)
@@ -913,12 +945,22 @@
                                         </div>
                                     </div>
                                 </div>
-                            </div>
+                            </div>`;
+
+                const mainPane = `
                             <div class="browser-main-area">
                                 <div class="mock-pane-caption">Browser (main pane)</div>
                                 <div class="mock-urlbar"><span${urlId}>${escapeHtml(opts.mainUrl || 'https://www.bing.com')}</span></div>
                                 <div class="mock-page"><span>🌐 Any Website</span></div>
-                            </div>
+                            </div>`;
+
+                return `
+                    <div class="browser-mockup">
+                        <div class="mock-titlebar">
+                            <div class="mock-traffic"><span></span><span></span><span></span></div>
+                            <div class="mock-title">${escapeHtml(opts.title || 'Power App Desktop Extension')}</div>
+                        </div>
+                        <div class="browser-content${sidebarRight ? ' sidebar-right' : ''}">${sidebarRight ? mainPane + sidebarPane : sidebarPane + mainPane}
                         </div>
                     </div>`;
             };
@@ -1023,6 +1065,15 @@ npm test`;
                             <label for="sidebarWidth">Sidebar width (px)</label>
                             <input type="number" id="sidebarWidth" min="200" max="900" step="10" value="${escapeHtml(configData.sidebarWidth)}">
                         </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="sidebarPosition">Sidebar position</label>
+                        <select id="sidebarPosition">
+                            <option value="right"${configData.sidebarPosition !== 'left' ? ' selected' : ''}>Right (default)</option>
+                            <option value="left"${configData.sidebarPosition === 'left' ? ' selected' : ''}>Left</option>
+                        </select>
+                        <p class="description">Puts the Power App pane on the right of the window, next to the embedded
+                            browser. Flip it to <strong>Left</strong> if your workflow reads better the other way around.</p>
                     </div>
                     <p class="description">Recommended: 1440 × 900 with a 420 px sidebar. The sidebar keeps at least
                         200 px, and the main pane keeps at least 320 px.</p>
@@ -1159,8 +1210,8 @@ npm test`;
                                 <p>Simulate a scrape of the main pane and see the exact URL the app will load into the
                                     Power App sidebar, the JSON it captures, and the main-process log it prints.</p>
                                 <p class="preview-note"><strong>What you're seeing:</strong> the real dual-pane layout —
-                                    Power App on the left, embedded browser on the right — rendered from the values you
-                                    enter here.</p>
+                                    embedded browser with the Power App docked to the
+                                    ${isSidebarOnLeft() ? 'left' : 'right'} — rendered from the values you enter here.</p>
                                 <p class="preview-info">
                                     ${hasAnyData
                                         ? 'Enter sample values below and press <strong>Update Preview</strong>. Nothing is sent anywhere; the simulation runs entirely in this page.'
@@ -1258,7 +1309,7 @@ Text(gblTabBodyObject.customerName)`, { copyTarget: 'simPowerFx' })}
                             <h4>Window layout</h4>
                             <ul>
                                 <li>Window: ${config.windowWidth} × ${config.windowHeight}</li>
-                                <li>Sidebar: ${config.sidebarWidth} px (left)</li>
+                                <li>Sidebar: ${config.sidebarWidth} px (${config.sidebarPosition})</li>
                             </ul>
                         </div>
                         <div class="summary-card">
@@ -1382,7 +1433,7 @@ Text(gblTabBodyObject.customerName)`, { copyTarget: 'simPowerFx' })}
                         <div><span class="prompt">$</span> <span class="cmd">npm test</span></div>
                         <div class="comment"># Runs the node:test suite (no Electron binary required)</div>
                     </div>
-                    <p class="description">Debugging tips live in the <a href="README.md" target="_blank" rel="noopener">README</a> —
+                    <p class="description">Debugging tips live in the <a href="https://github.com/Spuds0588/Powerapps-to-electron-template/blob/main/README.md" target="_blank" rel="noopener">README</a> —
                         <code>Ctrl/Cmd + Shift + I</code> opens DevTools for the focused pane and every update is logged with
                         the <code>[PowerApp Desktop]</code> prefix.</p>
                 </div>`;
@@ -1627,7 +1678,10 @@ Text(gblTabBodyObject.customerName)`, { copyTarget: 'simPowerFx' })}
                 if (config.parameters.includeLocalStorage && Object.keys(data.localStorage).length > 0) parameterNames.push('tabLocalStorage');
 
                 const reloads = sidebarUrl !== lastSimulatedUrl;
-                lastSimulatedUrl = sidebarUrl;
+                // Only an explicit run counts as a sidebar load - the same thing main.js
+                // records - so recalculating live while the sample values are typed cannot
+                // make the guard claim the Power App was already reloaded.
+                if (announce) lastSimulatedUrl = sidebarUrl;
 
                 urlBlock.textContent = sidebarUrl;
                 $('simScrape').textContent = JSON.stringify(data, null, 2);

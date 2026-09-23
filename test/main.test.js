@@ -41,6 +41,8 @@ test('loadConfig merges partial config over defaults', () => {
 
   assert.equal(config.powerAppUrl, 'https://apps.powerapps.com/play/e/ENV/a/APP');
   assert.equal(config.sidebarWidth, 360);
+  // A partial config.json keeps the right-hand sidebar default.
+  assert.equal(config.sidebarPosition, 'right');
   // Untouched nested defaults must survive the merge.
   assert.equal(config.parameters.includeTabUrl, true);
   assert.equal(config.triggers.onTimer.interval, 2000);
@@ -104,7 +106,7 @@ test('createWindow strips the Electron and app tokens from the user agent', asyn
   }
 });
 
-test('layoutViews splits the window between a fixed sidebar and the main pane', async () => {
+test('layoutViews docks the sidebar on the right by default', async () => {
   const app = loadMain({ dir: dirWithConfig({ sidebarWidth: 400, windowWidth: 1440, windowHeight: 900 }) });
   await app.ready;
 
@@ -113,8 +115,30 @@ test('layoutViews splits the window between a fixed sidebar and the main pane', 
 
   // Compare fields individually: the bounds objects are created inside the vm
   // sandbox, so their prototypes differ from this realm's Object.prototype.
+  assert.deepEqual({ ...app.mainPane.lastBounds }, { x: 0, y: 0, width: 800, height: 800 });
+  assert.deepEqual({ ...app.sidebar.lastBounds }, { x: 800, y: 0, width: 400, height: 800 });
+});
+
+test('layoutViews moves the sidebar to the left when config.json asks for it', async () => {
+  const app = loadMain({
+    dir: dirWithConfig({ sidebarWidth: 400, sidebarPosition: 'left', windowWidth: 1440, windowHeight: 900 })
+  });
+  await app.ready;
+
+  app.windows[0].resize(1200, 800);
+
   assert.deepEqual({ ...app.sidebar.lastBounds }, { x: 0, y: 0, width: 400, height: 800 });
   assert.deepEqual({ ...app.mainPane.lastBounds }, { x: 400, y: 0, width: 800, height: 800 });
+});
+
+test('layoutViews treats an unknown sidebarPosition as the right-hand default', async () => {
+  const app = loadMain({ dir: dirWithConfig({ sidebarPosition: 'sideways', windowWidth: 1440 }) });
+  await app.ready;
+
+  app.windows[0].resize(1200, 800);
+
+  assert.equal(app.sidebar.lastBounds.x, 1200 - app.sidebar.lastBounds.width);
+  assert.equal(app.mainPane.lastBounds.x, 0);
 });
 
 test('layoutViews clamps an oversized sidebar so the main pane keeps 320px', async () => {
@@ -134,7 +158,8 @@ test('layoutViews enforces a 200px minimum sidebar width', async () => {
   app.windows[0].resize(1200, 800);
 
   assert.equal(app.sidebar.lastBounds.width, 200);
-  assert.equal(app.mainPane.lastBounds.x, 200);
+  assert.equal(app.mainPane.lastBounds.x, 0);
+  assert.equal(app.sidebar.lastBounds.x, 1000);
 });
 
 // ---------------------------------------------------------------------------

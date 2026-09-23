@@ -14,6 +14,7 @@ Working checklist for the template. Mirrors the Developer Task List in
 - [x] Implement `fs` logic to read `config.json` (with fallback defaults if missing).
 - [x] Instantiate the main window and attach the two `WebContentsView` elements (Sidebar & Main).
 - [x] Implement the window resize listener to maintain the defined `sidebarWidth`.
+- [x] Dock the sidebar on the right by default, with `sidebarPosition: "left"` as the flip option.
 - [x] Implement `setWindowOpenHandler` on both views to allow Microsoft Entra ID popups.
 
 ## Phase 3: Context Passing & Scraping Logic
@@ -44,6 +45,16 @@ Working checklist for the template. Mirrors the Developer Task List in
       parsing, the config-example schema, and the Pages workflow.
 - [x] Add wizard tests that drive the real `wizard.html`: the full step flow, the simulated preview,
       the written config, and parity between the wizard's URL builder and `main.js`.
+- [x] Add a real-browser suite (`npm run test:browser`) on Puppeteer's Chromium. It clicks through
+      the whole wizard, measures the mockup with `getBoundingClientRect` to prove the Power App pane
+      docks on the side `sidebarPosition` names (hero and Test & Preview), checks the divider renders
+      on the pane's inner edge, runs the simulator, and fails on uncaught or console errors from the
+      wizard's own code.
+- [x] Support headed runs too (`HEADED=1`, and `npm run test:browser:headed` on a virtual display),
+      and skip the suite rather than fail when no Chromium is installed.
+- [x] Cover what the site serves from the same suite — the root entry point, the scanners page and
+      `config.example.json` over HTTP — plus `npm run verify:pages` against the live deployment.
+- [ ] Eyeball the screenshots the browser suite writes to `test/screenshots/` after a UI change.
 - [ ] Test the Microsoft Auth flow using a live Power App URL.
 - [ ] Test DOM scraping against a dummy webpage.
 - [ ] Test `npm run make` on Windows (Squirrel) and Mac (ZIP) to ensure clean executables.

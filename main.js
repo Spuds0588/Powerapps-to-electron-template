@@ -3,6 +3,7 @@
 // Dual-pane Electron shell that embeds a Microsoft Power App in a persistent sidebar
 // and an external browser in the main pane. The main process scrapes the main pane and
 // passes the captured context back into the Power App as URL query parameters.
+// The sidebar sits on the right by default; set `sidebarPosition` to "left" to flip it.
 //
 // Architecture notes:
 //  - Uses BaseWindow + WebContentsView (modern Electron). No BrowserView, no <webview>.
@@ -24,6 +25,7 @@ const DEFAULT_CONFIG = {
   powerAppUrl: 'https://apps.powerapps.com/play/e/YOUR_ENVIRONMENT_ID/a/YOUR_APP_ID?tenantId=YOUR_TENANT_ID',
   defaultMainUrl: 'https://www.bing.com',
   sidebarWidth: 420,
+  sidebarPosition: 'right',
   windowWidth: 1440,
   windowHeight: 900,
   parameters: {
@@ -123,7 +125,8 @@ function applyCleanUserAgent(view) {
 
 /**
  * Keeps the sidebar a fixed width and gives the remainder of the window to the
- * main content pane.
+ * main content pane. `sidebarPosition` docks the Power App on the right (default)
+ * or on the left.
  */
 function layoutViews() {
   if (!mainWindow || mainWindow.isDestroyed() || !sidebarView || !mainContentView) return;
@@ -131,9 +134,11 @@ function layoutViews() {
   const { width, height } = mainWindow.getContentBounds();
   const maxSidebar = Math.max(200, width - 320);
   const sidebarWidth = Math.max(200, Math.min(Number(config.sidebarWidth) || 420, maxSidebar));
+  const onLeft = String(config.sidebarPosition).toLowerCase() === 'left';
+  const mainWidth = width - sidebarWidth;
 
-  sidebarView.setBounds({ x: 0, y: 0, width: sidebarWidth, height });
-  mainContentView.setBounds({ x: sidebarWidth, y: 0, width: width - sidebarWidth, height });
+  sidebarView.setBounds({ x: onLeft ? 0 : mainWidth, y: 0, width: sidebarWidth, height });
+  mainContentView.setBounds({ x: onLeft ? sidebarWidth : 0, y: 0, width: mainWidth, height });
 }
 
 /**

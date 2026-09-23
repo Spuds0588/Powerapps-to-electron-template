@@ -1,7 +1,7 @@
 {
   "name": "powerapp-electron-template",
   "productName": "Power App Desktop Extension",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Package and extend a Microsoft Power App into a standalone desktop application with a dual-pane Electron shell.",
   "main": "main.js",
   "scripts": {
@@ -10,6 +10,10 @@
     "make": "electron-forge make",
     "publish": "electron-forge publish",
     "test": "node --test \"test/*.test.js\"",
+    "test:browser": "node --test \"test/browser/*.test.js\"",
+    "test:browser:headed": "xvfb-run -a env HEADED=1 node --test \"test/browser/*.test.js\"",
+    "test:all": "npm test && npm run test:browser",
+    "verify:pages": "node test/browser/verify-pages.js",
     "lint": "echo \"No linter configured for this template\" && exit 0"
   },
   "keywords": [
@@ -26,6 +30,7 @@
     "@electron-forge/cli": "^7.6.0",
     "@electron-forge/maker-squirrel": "^7.6.0",
     "@electron-forge/maker-zip": "^7.6.0",
-    "electron": "^33.0.0"
+    "electron": "^33.0.0",
+    "puppeteer": "^25.11.0"
   }
 }

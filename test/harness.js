@@ -354,7 +354,17 @@ function createDomStub() {
       documentListeners[type].push(handler);
     },
     getElementById(id) {
-      if (!elements.has(id)) elements.set(id, createElementStub(id));
+      if (!elements.has(id)) {
+        const element = createElementStub(id);
+        // Real events reach the document-level (capture/bubble) listeners too, so the
+        // wizard's delegated `change` handler has to see them here.
+        element.dispatch = (type) => {
+          const event = { type, target: element, preventDefault() {} };
+          const handlers = [...(documentListeners[type] || []), ...(element.listeners[type] || [])];
+          return Promise.all(handlers.map((handler) => handler(event)));
+        };
+        elements.set(id, element);
+      }
       return elements.get(id);
     },
     querySelector(selector) {

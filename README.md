@@ -100,7 +100,12 @@ npm install
 npm start
 ```
 
-The window opens with your Power App on the left and the main browser pane on the right.
+> `npm install` also downloads a Chrome build for the browser test suite (~170 MB). Set
+> `PUPPETEER_SKIP_DOWNLOAD=1` if you only want to run the app.
+
+The window opens with your Power App docked on the **right** and the main browser pane filling the
+rest of the window. Set `sidebarPosition` to `"left"` in `config.json` if you prefer it the other way
+around (the wizard has a **Sidebar position** selector for the same setting).
 
 ### Step 4: Test It!
 By default the app already passes the main pane's URL to your Power App as `tabURL`. Navigate around
@@ -118,6 +123,7 @@ fall back to defaults.
   "powerAppUrl": "https://apps.powerapps.com/play/e/your-environment-id/a/your-app-id?tenantId=your-tenant-id",
   "defaultMainUrl": "https://www.bing.com",
   "sidebarWidth": 420,
+  "sidebarPosition": "right",
   "windowWidth": 1440,
   "windowHeight": 900,
   "parameters": {
@@ -143,6 +149,7 @@ fall back to defaults.
 | `powerAppUrl` | placeholder | **Required.** The base URL of your Power App. Existing query params are preserved. |
 | `defaultMainUrl` | `https://www.bing.com` | The page the main pane opens to at launch. |
 | `sidebarWidth` | `420` | Width of the Power App sidebar, in pixels. |
+| `sidebarPosition` | `"right"` | Which side the Power App sidebar docks on: `"right"` (default) or `"left"`. Anything else falls back to `"right"`. |
 | `windowWidth` / `windowHeight` | `1440` / `900` | Initial window size (clamped to your screen). |
 
 ### `parameters`
@@ -243,9 +250,39 @@ stubbed Electron, so the shipping code is exercised directly:
     switch.
 *   `test/static.test.js` — every shipped JS file and inline `<script>` block parses, the JSON files
     parse, every wizard step renders the fields it wires up (and escapes hostile values),
-    `config.example.json` only uses keys the app understands, `config.json` stays git-ignored, and the
-    Pages workflow still builds the wizard. It also asserts the wizard's simulator builds byte-identical
-    sidebar URLs to `main.js`.
+    `config.example.json` only uses keys the app understands, `config.json` stays git-ignored, the
+    mockup CSS docks the Power App pane on the side `sidebarPosition` names, the Pages workflow still
+    publishes the wizard, and the site root forwards to it. It also asserts the wizard's simulator
+    builds byte-identical sidebar URLs to `main.js`, and that the simulator only records a sidebar load
+    on an explicit run — the same rule `main.js` applies to `sidebarCurrentUrl`.
+
+#### Headless and headed browser tests
+
+`npm test` never launches a browser, so it stays fast and works offline. The rendering and the
+published site are covered separately by `test/browser/`, with [Puppeteer](https://pptr.dev)
+driving a real Chrome:
+
+```bash
+npm run test:browser          # headless Chromium, against the working tree
+npm run test:browser:headed   # the same suite on a virtual display (Linux containers / CI)
+npm run test:all              # both suites
+npm run verify:pages          # the browser suite against the live GitHub Pages site
+```
+
+`HEADED=1 npm run test:browser` opens a real window on a machine with a display (on Windows, run
+`set HEADED=1` first). The suite clicks through the whole wizard, measures the simulated desktop
+window with `getBoundingClientRect` to prove which side the Power App pane is docked on, checks the
+divider is drawn on the pane's inner edge, runs the simulator, and fails on any uncaught error or
+console error from the wizard's own code. It writes screenshots to `test/screenshots/` (git-ignored)
+so the result can be eyeballed after a run.
+
+If Chrome for Testing is not installed the suite skips itself rather than failing; set
+`REQUIRE_BROWSER=1` to make that a failure instead. `npm install` downloads Chrome for Puppeteer —
+use `PUPPETEER_SKIP_DOWNLOAD=1 npm install` if you only want to run the app.
+
+On a bare Linux container Chrome also needs its shared libraries: `libnss3 libatk1.0-0
+libatk-bridge2.0-0 libcups2 libdrm2 libxkbcommon0 libxcomposite1 libxdamage1 libxfixes3 libxrandr2
+libgbm1 libpango-1.0-0 libcairo2 libasound2 libxshmfence1 libgl1`, plus `xvfb` for a headed run.
 
 Common issues:
 *   **"Blank screen when logging in"** — verify popup handling in `setWindowOpenHandler`.
@@ -265,6 +302,7 @@ Common issues:
 ├── config.example.json         # Reference configuration
 ├── config.json                 # Your generated configuration (git-ignored)
 ├── wizard.html                 # The GitHub Pages configuration wizard
+├── index.html                  # Forwards the published site root to wizard.html
 ├── forge.config.js             # Electron Forge packaging config
 ├── package.json
 ├── Research_Tools/             # Bookmarklets to find element IDs and local storage keys
@@ -275,7 +313,11 @@ Common issues:
 │   ├── harness.js              # Stubbed Electron (main.js) and DOM (wizard.html)
 │   ├── main.test.js            # Behaviour of the Electron shell
 │   ├── static.test.js          # File/HTML/JSON integrity + wizard step rendering
-│   └── wizard.test.js          # The wizard's step flow, driving the real page
+│   ├── wizard.test.js          # The wizard's step flow, driving the real page
+│   └── browser/                # Chromium suite: real layout + live-site verification
+│       ├── wizard.browser.test.js
+│       ├── server.js           # Loopback static server the suite drives
+│       └── verify-pages.js     # The same suite, pointed at the live Pages site
 ├── Agents.md                   # Directives for AI coding agents
 ├── TODO.md                     # Task checklist
 └── HISTORY.md                  # Version history
